@@ -1,0 +1,73 @@
+BootStrap: docker
+From: nvidia/cuda:11.2.2-cudnn8-runtime-ubuntu20.04
+
+%labels
+    APPLICATION_NAME Automatic Brain Masking v. 2
+    AUTHOR_NAME Alejandro Valdes & Sofia Urosa
+    AUTHOR_EMAIL sofia.urosadavila@childrens.harvard.edu
+    YEAR 2023
+    - UPDATE 2024 - 
+    Melquisideth Lagunas Barroso
+    melquisideth.lagunas@childrens.harvard.edu
+
+%help
+    Container for automatic brain masking. Allows for individual files or folders. Model codename: nancy (2024). 
+
+%files
+    individual_brain_mask.py /src/individual_brain_mask.py
+    model.py /src/model.py
+    nancy_model.json /src/nancy_model.json
+    nancy_weights.h5 /src/nancy_weights.h5
+    requirements.txt /requirements.txt
+    http_proxy.conf /etc/apt/apt.conf.d/http_proxy.conf
+    fslmaths /src/fslmaths
+
+%environment
+    # Set system locale
+    PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+    CUDA=/usr/local/cuda/lib64:/usr/local/cuda-11.2/include:/usr/local/cuda-11.2/lib64
+    LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/.singularity.d/libs:$CUDA
+    TZ=UTC
+    #PYTHONPATH=modules:$RDBASE:/usr/local/share/rdkit/rdkit:/usr/local/lib/python3.8/dist-packages/
+    #LANG=en_US.UTF-8
+    #LC_ALL=en_US.UTF-8
+    #LANGUAGE=en_US.UTF-8
+    export PATH=/usr/games:$PATH:$CUDA
+    export LD_LIBRARY_PATH
+    #export SINGULARITY_BIND=$PWD:/data
+    
+%post
+    export DEBIAN_FRONTEND=noninteractive
+    # Change to tmp directory to download temporary files.
+    cd /tmp
+
+    # Install essential software, languages and libraries. 
+    apt-get -qq -y update
+    apt-get -qq -y install fortune cowsay
+    apt install --no-install-recommends -y build-essential software-properties-common
+    add-apt-repository -y ppa:deadsnakes/ppa
+    apt install --no-install-recommends -y python3.8 python3-pip python3-setuptools python3-distutils
+
+    # Update python pip.
+    python3 -m pip --no-cache-dir install --upgrade pip wheel
+    python3 -m pip --no-cache-dir install setuptools --upgrade
+
+    # Install packages
+    #python -m pip --no-cache-dir install numpy pandas h5py sklearn scipy matplotlib tqdm nibabel
+
+    # Install Tensorflow.
+    python3 -m pip --no-cache-dir install -r /requirements.txt
+    python3 -m pip install opencv-python-headless
+
+    # Cleanup
+    apt-get -qq clean
+    rm -rf /var/lib/apt/lists/*
+    rm -rf /tmp/mpi
+
+    unset DEBIAN_FRONTEND
+
+%runscript
+    fortune | cowsay
+    #echo "Arguments received: $*"
+    cd /data
+    python3 /src/individual_brain_mask.py $1 $2 $3 
